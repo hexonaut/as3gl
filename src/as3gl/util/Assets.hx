@@ -8,6 +8,9 @@ package as3gl.util;
 import as3gl.core.Runnable;
 import as3gl.display.FlashDisplayObject;
 import as3gl.util.concurrent.Job;
+import flash.system.ApplicationDomain;
+import flash.system.LoaderContext;
+import flash.utils.CompressionAlgorithm;
 import math.BigInteger;
 import de.polygonal.ds.DA;
 import de.polygonal.ds.HashMap;
@@ -63,6 +66,12 @@ class Assets implements Job {
 		return _instance;
 	}
 	
+	public static function loadBytes (data:ByteArray, ?sigVerifier:BigInteger = null):Job {
+		_load(data, sigVerifier);
+		_checkReady();
+		return _instance;
+	}
+	
 	public static function instance ():Assets {
 		return _instance;
 	}
@@ -85,7 +94,13 @@ class Assets implements Job {
 		if (header.majorVersion == _GAP_VERSION_MAJOR && header.minorVersion == _GAP_VERSION_MINOR) {
 			var gapId:Int = _NEXT_GAP_ID++;
 			if (header.compressed) {
-				data.uncompress();
+				//Need to duplicate non-header info for deflate to work properly
+				var dataCopy:ByteArray = new ByteArray();
+				dataCopy.writeBytes(data, _getHeaderSize());
+				dataCopy.uncompress();
+				dataCopy.readBytes(data, _getHeaderSize());
+				data.position = _getHeaderSize();
+				data.length = _getHeaderSize() + dataCopy.length;
 			}
 			try {
 				_readLibrary(gapId, header.binOffset, data);
@@ -399,10 +414,26 @@ class Assets implements Job {
 		if (Std.is(event.target.content, Bitmap)) {
 			_libraryAssets[event.target.loader.gapId].set(event.target.loader.libId, new FlashDisplayObject(event.target.content.bitmapData));
 		} else {
-			_libraryAssets[event.target.loader.gapId].set(event.target.loader.libId, new FlashDisplayObject(Type.createInstance(event.target.applicationDomain.getDefinition("mc"), [])));
+			if (event.target.applicationDomain.hasDefinition("mc")) _libraryAssets[event.target.loader.gapId].set(event.target.loader.libId, new FlashDisplayObject(Type.createInstance(event.target.applicationDomain.getDefinition("mc"), [])));
 		}
 		event.target.loader.unload();
 		_checkReady();
+	}
+	
+	private static function _onAssetLoadCheckAnimation (event:Event):Void {
+		event.target.removeEventListener(Event.COMPLETE, _onAssetLoadCheckAnimation);
+		if (event.target.applicationDomain.hasDefinition("mc")) {
+			//SWF is an animation swf
+			_loadCount--;
+			 _libraryAssets[event.target.loader.gapId].set(event.target.loader.libId, new FlashDisplayObject(Type.createInstance(event.target.applicationDomain.getDefinition("mc"), [])));
+			event.target.loader.unload();
+			_checkReady();
+		} else {
+			//SWF is a library swf
+			event.target.loader.unload();
+			event.target.addEventListener(Event.COMPLETE, _onAssetLoad);
+			event.target.loader.loadBytes(event.target.loader.data, new LoaderContext(false, ApplicationDomain.currentDomain));
+		}
 	}
 	
 	private static function _onSoundLoad (event:Event):Void {
@@ -494,8 +525,11 @@ class Assets implements Job {
 					_loadCount--;
 					if (loader.data.bytesAvailable > 0) _libraryAssets[loader.gapId].set(loader.libId, loader.data);
 					_checkReady();
-				} else if (loader.type == _IMAGE || loader.type == _ANIMATION) {
+				} else if (loader.type == _IMAGE) {
 					loader.contentLoaderInfo.addEventListener(Event.COMPLETE, _onAssetLoad);
+					loader.loadBytes(loader.data);
+				} else if (loader.type == _ANIMATION) {
+					loader.contentLoaderInfo.addEventListener(Event.COMPLETE, _onAssetLoadCheckAnimation);
 					loader.loadBytes(loader.data);
 				} else if (loader.type == _SOUND) {
 					loader.contentLoaderInfo.addEventListener(Event.COMPLETE, _onSoundLoad);
