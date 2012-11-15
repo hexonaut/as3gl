@@ -50,7 +50,7 @@ class Asset {
 	
 	public function getProperty (name:String, ?defaultValue:String = null):String {
 		var val:String = _props.get(name);
-		if (val == null) {
+		if (val == null || val == "") {
 			val = defaultValue;
 		}
 		return val;
@@ -58,7 +58,7 @@ class Asset {
 	
 	public function requireProperty (name:String):String {
 		var val:String = _props.get(name);
-		if (val == null) {
+		if (val == null || val == "") {
 			Logger.log(Logger.WARN, "Missing required property '" + name + "' on directory '" + getPath() + "'.");
 			throw new Error("Missing required property '" + name + "' on directory '" + getPath() + "'.");
 		}
