@@ -12,6 +12,7 @@ import as3gl.geom.Geom;
 import as3gl.geom.Line;
 import as3gl.logging.Logger;
 import as3gl.util.concurrent.StagedJob;
+import as3gl.util.Console;
 import as3gl.world.WorldAABB2;
 import as3gl.world.WorldVec2;
 import de.polygonal.core.math.Mathematics;
@@ -41,13 +42,14 @@ class RoadMap extends StagedJob, implements Destroyable {
 	private var _cacheRes:Float;
 	private var _filterPts:Array<WorldVec2>;
 	private var _preprocess:Bool;
+	private var _minResolution:Float;
 	private var _maxResolution:Float;
 	private var _floors:Int;
 	private var _running:Bool;
 	private var _progress:Float;
 	private var _floorDims:flash.Vector<Dimension>;
 	
-	public function new (collWidth:Int, collHeight:Int, mapWidth:Int, mapHeight:Int, collRects:Array<WorldAABB2>, connPts:Array<WorldVec2>, ?cacheSize:Int = -1, ?cacheResolution:Float = -1, ?filterPts:Array<WorldVec2> = null, ?preprocess:Bool = false, ?maxResolution:Float = Mathematics.FLOAT_MAX) {
+	public function new (collWidth:Int, collHeight:Int, mapWidth:Int, mapHeight:Int, collRects:Array<WorldAABB2>, connPts:Array<WorldVec2>, ?cacheSize:Int = -1, ?cacheResolution:Float = -1, ?filterPts:Array<WorldVec2> = null, ?preprocess:Bool = false, ?minResolution:Float = 1, ?maxResolution:Float = Mathematics.FLOAT_MAX) {
 		super([_buildRectLines, _enforceMaxResolution, _buildRects, _mergeRects, _buildLookups, _buildGraphArcs, _joinFloors, _filterInaccessableRoads, _buildRouteLookups]);
 		_running = true;
 		_mapWidth = mapWidth;
@@ -68,6 +70,7 @@ class RoadMap extends StagedJob, implements Destroyable {
 		_idMul = _floorMul * _floors;
 		_filterPts = filterPts;
 		_preprocess = preprocess;
+		_minResolution = minResolution;
 		_maxResolution = maxResolution;
 		_progress = 0;
 		
@@ -151,6 +154,32 @@ class RoadMap extends StagedJob, implements Destroyable {
 			}
 			_progress += 1 / _collRects.length / getStageCount();
 		} else {
+			//Make sure boxes arn't too small
+			for (i in 0 ... _floors) {
+				var last = 0;
+				for (o in 0 ... _mapWidth) {
+					if (_getX(i, o) != 0) {
+						if (last <= o - _minResolution) {
+							last = o;
+						} else {
+							_setX(i, o, 0);
+							_floorDims[i].width--;
+						}
+					}
+				}
+				last = 0;
+				for (o in 0 ... _mapHeight) {
+					if (_getY(i, o) != 0) {
+						if (last <= o - _minResolution) {
+							last = o;
+						} else {
+							_setY(i, o, 0);
+							_floorDims[i].height--;
+						}
+					}
+				}
+			}
+			
 			vars.itr = 0 ... _floors;
 			return true;
 		}
@@ -259,6 +288,13 @@ class RoadMap extends StagedJob, implements Destroyable {
 		//Merge rectangles and build graph nodes
 		var gridRects:flash.Vector<de.polygonal.ds.Array2<WorldAABB2>> = vars.gridRects;
 		var completed:flash.Vector<de.polygonal.ds.Array2<Bool>> = vars.completed;
+		
+		var sum = 0;
+		for (i in gridRects) {
+			sum += i.getW() * i.getH();
+		}
+		Console.print("Total Rects: " + sum);
+		
 		if (vars.itr.hasNext()) {
 			var i:Int = vars.itr.next();
 			completed[i] = new de.polygonal.ds.Array2<Bool>(gridRects[i].getW(), gridRects[i].getH());

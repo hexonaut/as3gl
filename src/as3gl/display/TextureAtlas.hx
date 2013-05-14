@@ -28,7 +28,7 @@ class TextureAtlas {
 	}
 	
 	private inline function _normalize (xmin:Int, ymin:Int, xmax:Int, ymax:Int):AABB2 {
-		return new AABB2(xmin / _bitmap.width, ymin / _bitmap.height, xmax / _bitmap.width, ymax / _bitmap.height);
+		return new AABB2((_dedicated ? xmin : xmin + 0.5) / _bitmap.width, (_dedicated ? ymin : ymin + 0.5) / _bitmap.height, (_dedicated ? xmax : xmax - 0.5) / _bitmap.width, (_dedicated ? ymax : ymax - 0.5) / _bitmap.height);
 	}
 	
 	public function add (bmd:BitmapData):Quad {

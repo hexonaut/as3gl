@@ -144,9 +144,11 @@ class Batcher implements Destroyable {
 		if (_transparencyShader == null) _transparencyShader = new TransparencyShader(c);
 	}
 	
-	public function batch (c:Context3D, camera:Matrix3D, polygon:Polygon, ?transform:Matrix3D = null, ?filter:Vector3D = null):Void {
-		if (_bmds.length > 0) build(c);
-		
+	public inline function isReady ():Bool {
+		return _bmds.length > 0;
+	}
+	
+	public function batch (c:Context3D, camera:Matrix3D, polygon:Polygon, ?transform:Matrix3D, ?filter:Vector3D):Void {
 		if (transform == null) transform = _EMPTY_TRANSFORM;
 		if (filter == null) filter = _EMPTY_FILTER;
 		
@@ -210,6 +212,8 @@ class Batcher implements Destroyable {
 
 private class BufferSet {
 	
+	static var _TMP_VECTOR:flash.Vector<Float> = new flash.Vector<Float>();
+	
 	public var vbuf:flash.Vector<Float>;
 	public var vbufi:Int;
 	public var ibuf:flash.Vector<UInt>;
@@ -227,9 +231,9 @@ private class BufferSet {
 	}
 	
 	public inline function addVertex (v:Vertex, depth:Float, transform:Matrix3D, filter:Vector3D):Void {
-		var m:flash.Vector<Float> = transform.rawData;
-		vbuf[vbufi++] = v.x*m[0] + v.y*m[4] + m[12];
-		vbuf[vbufi++] = v.x*m[1] + v.y*m[5] + m[13];
+		transform.copyRawDataTo(_TMP_VECTOR);
+		vbuf[vbufi++] = v.x*_TMP_VECTOR[0] + v.y*_TMP_VECTOR[4] + _TMP_VECTOR[12];
+		vbuf[vbufi++] = v.x*_TMP_VECTOR[1] + v.y*_TMP_VECTOR[5] + _TMP_VECTOR[13];
 		vbuf[vbufi++] = depth;
 		vbuf[vbufi++] = v.u;
 		vbuf[vbufi++] = v.v;

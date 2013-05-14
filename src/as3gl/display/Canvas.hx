@@ -228,7 +228,7 @@ class Canvas extends CanvasObject {
 		return get()._c.driverInfo;
 	}
 	
-	public static function getNextDepth ():Float {
+	public static inline function getNextDepth ():Float {
 		return _instance._depth++;
 	}
 	
@@ -293,10 +293,14 @@ class Canvas extends CanvasObject {
 		_c.setCulling(Context3DTriangleFace.BACK);
 		_c.setBlendFactors(Context3DBlendFactor.SOURCE_ALPHA, Context3DBlendFactor.ONE_MINUS_SOURCE_ALPHA);
 		
+		//Make sure batcher is ready
+		var b:Batcher = Batcher.get();
+		if (b.isReady()) b.build(_c);
+		
 		//Render children and display
 		_depth = 1;
 		this.render(_c, _mproj);
-		Batcher.get().render(_c, _mproj);
+		b.render(_c, _mproj);
 		_c.present();
 		
 		_renderDur = _mult * ((Lib.getTimer() - time) / _period) + (1 - _mult) * _renderDur;

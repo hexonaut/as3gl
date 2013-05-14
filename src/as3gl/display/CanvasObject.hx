@@ -39,7 +39,7 @@ class CanvasObject extends Observable, implements Runnable {
 	private static var _TMP_MATRIX:Matrix3D = new Matrix3D();
 	
 	private var _parent:CanvasObject;
-	private var _children:DA<CanvasObject>;
+	private var _children:Array<CanvasObject>;
 	private var _bounds:AABB2;
 	private var _boundsChanged:Bool;
 	private var _pos:Vec2;
@@ -58,7 +58,7 @@ class CanvasObject extends Observable, implements Runnable {
 	public function new () {
 		super();
 		
-		_children = new DA<CanvasObject>();
+		_children = new Array<CanvasObject>();
 		_bounds = new AABB2();
 		_boundsChanged = true;
 		_pos = new Vec2();
@@ -332,15 +332,15 @@ class CanvasObject extends Observable, implements Runnable {
 			var frame:SpriteFrame = getFrame();
 			if (frame != null) {
 				_transformAABB(frame.bounds, _bounds, getTransform(), true);
-				for (i in 0 ... _children.size()) {
-					_transformAABB(_children.get(i).getBounds(_TMP_AABB), _TMP_AABB2, getTransform(), true);
+				for (i in 0 ... _children.length) {
+					_transformAABB(_children[i].getBounds(_TMP_AABB), _TMP_AABB2, getTransform(), true);
 					_bounds.addAABB(_TMP_AABB2);
 				}
 			} else {
-				if (_children.size() > 0) {
-					_transformAABB(_children.get(0).getBounds(_TMP_AABB), _bounds, getTransform(), true);
-					for (i in 1 ... _children.size()) {
-						_transformAABB(_children.get(i).getBounds(_TMP_AABB), _TMP_AABB2, getTransform(), true);
+				if (_children.length > 0) {
+					_transformAABB(_children[0].getBounds(_TMP_AABB), _bounds, getTransform(), true);
+					for (i in 1 ... _children.length) {
+						_transformAABB(_children[i].getBounds(_TMP_AABB), _TMP_AABB2, getTransform(), true);
 						_bounds.addAABB(_TMP_AABB2);
 					}
 				} else {
@@ -353,13 +353,13 @@ class CanvasObject extends Observable, implements Runnable {
 	}
 	
 	public function add (obj:CanvasObject):Void {
-		_children.pushBack(obj);
+		_children.push(obj);
 		obj._parent = this;
 		obj._setTransformChange(false);
 	}
 	
 	public function addAt (obj:CanvasObject, index:Int):Void {
-		_children.insertAt(index, obj);
+		_children.insert(index, obj);
 		obj._parent = this;
 		obj._setTransformChange(false);
 	}
@@ -370,7 +370,7 @@ class CanvasObject extends Observable, implements Runnable {
 	}
 	
 	public function removeAt (index:Int):CanvasObject {
-		var obj:CanvasObject = _children.removeAt(index);
+		var obj:CanvasObject = _children.splice(index, 1)[0];
 		obj._parent = null;
 		return obj;
 	}
@@ -379,26 +379,31 @@ class CanvasObject extends Observable, implements Runnable {
 		for (i in _children) {
 			i._parent = null;
 		}
-		_children.clear();
+		_children = new Array<CanvasObject>();
 	}
 	
 	public function get (index:Int):CanvasObject {
-		return _children.get(index);
+		return _children[index];
 	}
 	
 	public function has (obj:CanvasObject):Bool {
-		return _children.contains(obj);
+		for (i in _children) {
+			if (i == obj) return true;
+		}
+		return false;
 	}
 	
 	public function swap (index1:Int, index2:Int):Void {
-		_children.swp(index1, index2);
+		var tmp = _children[index1];
+		_children[index1] = _children[index2];
+		_children[index2] = tmp;
 	}
 	
 	public function getSize ():Int {
-		return _children.size();
+		return _children.length;
 	}
 	
-	public function getChildren ():DA<CanvasObject> {
+	public function getChildren ():Array<CanvasObject> {
 		return _children;
 	}
 	

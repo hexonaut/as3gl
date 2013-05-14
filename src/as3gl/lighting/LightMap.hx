@@ -459,6 +459,14 @@ class LightMap extends CanvasObject, implements Destroyable {
 		_vertBlurShader = new VerticalBlurShader(Canvas.getContext());
 	}
 	
+	public override function getBounds (out:AABB2):AABB2 {
+		out.xmin = _x;
+		out.ymin = _y;
+		out.xmax = _x + _w;
+		out.ymax = _y + _h;
+		return out;
+	}
+	
 	public inline function setLocation (x:Int, y:Int, floor:Int):Void {
 		_x = x;
 		_y = y;

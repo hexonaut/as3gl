@@ -42,7 +42,7 @@ class World extends CanvasObject, implements IObserver {
 	private var _floors:Vector<WorldFloor>;
 	
 	private var _dim:Dimension;
-	private var _screenDim:Dimension;
+	public var _screenDim:Dimension;
 	private var _numFloors:Int;
 	private var _levelsPerFloor:Int;
 	
@@ -69,7 +69,7 @@ class World extends CanvasObject, implements IObserver {
 		
 		this._floors = new Vector<WorldFloor>(numFloors);
 		for (i in 0 ... numFloors) {
-			_floors[i] = new WorldFloor(levelsPerFloor, Std.int(bounds.width), Std.int(bounds.height), collTreeDepth);
+			_floors[i] = new WorldFloor(this, levelsPerFloor, Std.int(bounds.width), Std.int(bounds.height), collTreeDepth);
 			this.add(_floors[i]);
 		}
 	}
@@ -180,12 +180,12 @@ private class WorldFloor extends CanvasObject, implements IObserver {
 	private var _quadTree:WorldQuadTree;
 	private var _levels:Vector<WorldLevel>;
 	
-	public function new (numLevels:Int, mapW:Int, mapH:Int, collTreeDepth:Int) {
+	public function new (world:World, numLevels:Int, mapW:Int, mapH:Int, collTreeDepth:Int) {
 		super();
 		
 		_levels = new Vector<WorldLevel>(numLevels);
 		for (i in 0 ... numLevels) {
-			_levels[i] = new WorldLevel();
+			_levels[i] = new WorldLevel(world);
 			this.add(_levels[i]);
 		}
 		
@@ -229,8 +229,14 @@ private class WorldFloor extends CanvasObject, implements IObserver {
 
 private class WorldLevel extends CanvasObject {
 	
-	public function new () {
+	private static var _TMP_AABB2:AABB2 = new AABB2();
+	
+	private var world:World;
+	
+	public function new (world:World) {
 		super();
+		
+		this.world = world;
 	}
 	
 	public inline function addObject (obj:WorldObject):Void {
@@ -239,6 +245,17 @@ private class WorldLevel extends CanvasObject {
 	
 	public inline function removeObject (obj:WorldObject):Void {
 		this.remove(obj);
+	}
+	
+	public override function render(c:Context3D, camera:Matrix3D):Void {
+		if (_alpha > 0 && _visible) {
+			runShader(c, camera);
+			
+			for (i in _children) {
+				i.getBounds(_TMP_AABB2);
+				if (_TMP_AABB2.xmax >= world.getPosX() && _TMP_AABB2.xmin < world.getPosX() + world._screenDim.width && _TMP_AABB2.ymax >= world.getPosY() && _TMP_AABB2.ymin < world.getPosY() + world._screenDim.height) i.render(c, camera);
+			}
+		}
 	}
 	
 }
